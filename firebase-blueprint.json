@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "posts": {
+      "title": "Post",
+      "description": "Blog articles created by admin or AI generator",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the post" },
+        "seoTitle": { "type": "string", "description": "SEO optimized title" },
+        "subtitle": { "type": "string", "description": "Subtitle" },
+        "metaDescription": { "type": "string", "description": "SEO meta description" },
+        "excerpt": { "type": "string", "description": "Card excerpt summary" },
+        "category": { "type": "string", "description": "Category name" },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags" },
+        "keywords": { "type": "array", "items": { "type": "string" }, "description": "SEO keywords" },
+        "slug": { "type": "string", "description": "URL slug" },
+        "livingProblem": { "type": "string", "description": "Living problem" },
+        "digitalTool": { "type": "string", "description": "Digital tool" },
+        "testEnvironment": { "type": "string", "description": "Tested environment" },
+        "readTimeMinutes": { "type": "number", "description": "Read time" },
+        "toc": { "type": "array", "items": { "type": "string" }, "description": "Table of contents" },
+        "faq": { "type": "array", "items": { "type": "object" }, "description": "FAQ list" },
+        "verificationChecklist": { "type": "array", "items": { "type": "string" }, "description": "Checklist" },
+        "content": { "type": "string", "description": "Markdown body content" },
+        "publishedAt": { "type": "string", "description": "Publication date" },
+        "updatedAt": { "type": "string", "description": "Update date" },
+        "published": { "type": "boolean", "description": "Is published or draft" },
+        "featured": { "type": "boolean", "description": "Is featured" },
+        "coverImage": { "type": "string", "description": "Cover image URL" },
+        "imageCaption": { "type": "string", "description": "Cover image caption" },
+        "views": { "type": "number", "description": "View count" },
+        "likes": { "type": "number", "description": "Like count" }
+      },
+      "required": ["title", "content", "category"]
+    },
+    "comments": {
+      "title": "Comment",
+      "description": "User comments on posts",
+      "properties": {
+        "postId": { "type": "string" },
+        "author": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["postId", "author", "content"]
+    },
+    "sitemaps": {
+      "title": "Sitemap",
+      "description": "Generated sitemap XML persistence",
+      "properties": {
+        "xml": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "postCount": { "type": "number" }
+      },
+      "required": ["xml", "updatedAt"]
+    },
+    "subscribers": {
+      "title": "Subscriber",
+      "description": "Weekly newsletter subscribers",
+      "properties": {
+        "email": { "type": "string" },
+        "subscribedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "required": ["email", "subscribedAt", "status"]
+    },
+    "newsletters": {
+      "title": "Newsletter",
+      "description": "Published newsletter issues",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "postId": { "type": "string" },
+        "postTitle": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "recipientCount": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["title", "content", "sentAt"]
+    }
+  }
+}

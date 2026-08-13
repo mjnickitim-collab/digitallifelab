@@ -1,0 +1,6 @@
+{
+  "name": "디지털생활연구소 (Digital Life Lab)",
+  "description": "생활 문제를 디지털 도구로 해결하는 실용 정보 블로그",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
