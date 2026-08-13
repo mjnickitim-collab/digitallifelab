@@ -68,7 +68,7 @@ export default function App() {
             postSlug === targetSlug ||
             p.id === targetSlug ||
             encodeURIComponent(postSlug) === targetSlug ||
-            postSlug.toLowerCase() === targetSlug.toLowerCase()
+            (postSlug || '').toLowerCase() === (targetSlug || '').toLowerCase()
           );
         });
 

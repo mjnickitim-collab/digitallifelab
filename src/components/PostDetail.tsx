@@ -225,7 +225,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
           <ol className="space-y-1.5 text-xs text-emerald-900/90 font-medium">
             {post.toc.map((rawItem, idx) => {
               // Strip duplicate leading numbers like "1.", "1 -", "소제목 1."
-              const cleanTitle = rawItem.replace(/^(\d+[\.\s\-]+|소제목\s*\d*[\.\s\-]*)+/i, '').trim();
+              const cleanTitle = (rawItem || '').replace(/^(\d+[\.\s\-]+|소제목\s*\d*[\.\s\-]*)+/i, '').trim();
               const targetSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
 
               return (
@@ -352,8 +352,11 @@ export const PostDetail: React.FC<PostDetailProps> = ({
 
                 // If not found by exact slug/id, search by title keywords in children
                 if (!targetPost && typeof children === 'string') {
-                  const childText = children.toLowerCase();
-                  targetPost = allPosts.find((p) => p.title.toLowerCase().includes(childText) || childText.includes(p.title.toLowerCase()));
+                  const childText = (children || '').toLowerCase();
+                  targetPost = allPosts.find((p) => {
+                    const pTitle = (p?.title || '').toLowerCase();
+                    return pTitle.includes(childText) || childText.includes(pTitle);
+                  });
                 }
 
                 if (targetPost) {

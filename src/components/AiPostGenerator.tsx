@@ -69,11 +69,11 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
   // Helper to count existing published posts matching a topic
   const getMatchingPostCount = (topicTitle: string): number => {
     if (!posts || posts.length === 0) return 0;
-    const clean = topicTitle.trim().toLowerCase();
+    const clean = (topicTitle || '').trim().toLowerCase();
     if (!clean) return 0;
     const keyChunk = clean.slice(0, 12);
     return posts.filter((p) => {
-      const pTitle = p.title.toLowerCase();
+      const pTitle = (p?.title || '').toLowerCase();
       return pTitle.includes(keyChunk) || clean.includes(pTitle.slice(0, 12));
     }).length;
   };
@@ -96,7 +96,7 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
       // Search query filter
       if (presetSearch.trim()) {
         const q = presetSearch.trim().toLowerCase();
-        return item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
+        return (item.title || '').toLowerCase().includes(q) || (item.category || '').toLowerCase().includes(q);
       }
       return true;
     });
@@ -178,11 +178,11 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
         console.error('Failed to persist topic usage count:', err);
       }
 
-      const art = data.article;
-      const slug = art.slug || (art.title || topic)
+      const art = data.article || {};
+      const slug = art.slug || ((art.title || topic || '')
         .toLowerCase()
         .replace(/[^a-z0-9가-힣]+/g, '-')
-        .replace(/(^-|-$)/g, '') || `post-${Date.now()}`;
+        .replace(/(^-|-$)/g, '')) || `post-${Date.now()}`;
 
       onPostGenerated({
         slug,

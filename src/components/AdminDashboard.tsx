@@ -137,7 +137,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!manualTitle.trim() || !manualContent.trim()) return;
 
-    const slug = manualTitle
+    const slug = (manualTitle || '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
@@ -331,8 +331,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {posts.map((post) => (
-                    <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
+                  {posts.map((post, idx) => (
+                    <tr key={post.id || `post-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4 max-w-xs">
                         <div className="flex items-center gap-3">
                           <img

@@ -61,10 +61,10 @@ export const BlogHome: React.FC<BlogHomeProps> = ({
       // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const titleMatch = post.title.toLowerCase().includes(query);
-        const excerptMatch = post.excerpt.toLowerCase().includes(query);
-        const tagMatch = post.tags.some((t) => t.toLowerCase().includes(query));
-        const authorMatch = post.author.name.toLowerCase().includes(query);
+        const titleMatch = post.title ? post.title.toLowerCase().includes(query) : false;
+        const excerptMatch = post.excerpt ? post.excerpt.toLowerCase().includes(query) : false;
+        const tagMatch = Array.isArray(post.tags) ? post.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(query)) : false;
+        const authorMatch = post.author && post.author.name ? post.author.name.toLowerCase().includes(query) : false;
         return titleMatch || excerptMatch || tagMatch || authorMatch;
       }
 

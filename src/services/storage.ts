@@ -604,8 +604,8 @@ export function subscribeSubscribers(onUpdate: (subs: NewsletterSubscriber[]) =>
 
 export async function addSubscriber(email: string, source: string = 'footer_form'): Promise<NewsletterSubscriber> {
   const current = getSubscribers();
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = current.find((s) => s.email.toLowerCase() === normalizedEmail);
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const existing = current.find((s) => (s?.email || '').toLowerCase() === normalizedEmail);
 
   if (existing) {
     if (existing.status === 'unsubscribed') {
