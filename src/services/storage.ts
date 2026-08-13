@@ -905,5 +905,62 @@ export function subscribeStaticPages(callback: (pages: StaticPagesConfig) => voi
   }
 }
 
+export function getBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.origin;
+  }
+  return 'https://www.digitallifelab.blog';
+}
+
+export function generateSitemapXml(posts: BlogPost[]): string {
+  const baseUrl = getBaseUrl();
+  const publishedPosts = (posts || []).filter((p) => p && p.published !== false);
+  const now = new Date().toISOString().split('T')[0];
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  const staticPages = [
+    { url: '/', priority: '1.0', changefreq: 'daily' },
+    { url: '/about', priority: '0.8', changefreq: 'monthly' },
+    { url: '/terms', priority: '0.5', changefreq: 'yearly' },
+    { url: '/privacy', priority: '0.5', changefreq: 'yearly' },
+  ];
+
+  staticPages.forEach((page) => {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}${page.url}</loc>\n`;
+    xml += `    <lastmod>${now}</lastmod>\n`;
+    xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+    xml += `    <priority>${page.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  });
+
+  publishedPosts.forEach((post) => {
+    let postSlug = (post.slug || '').trim();
+    if (!postSlug || /^post-\d+$/.test(postSlug)) {
+      postSlug = (post.title || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\s가-힣-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+    const slug = postSlug || post.id || 'post';
+    const lastMod = post.updatedAt ? post.updatedAt.split('T')[0] : (post.createdAt ? post.createdAt.split('T')[0] : now);
+
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/post/${encodeURIComponent(slug)}</loc>\n`;
+    xml += `    <lastmod>${lastMod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+    xml += `  </url>\n`;
+  });
+
+  xml += `</urlset>`;
+  return xml;
+}
+
 
 

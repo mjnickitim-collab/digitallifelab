@@ -69,12 +69,23 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
   // Helper to count existing published posts matching a topic
   const getMatchingPostCount = (topicTitle: string): number => {
     if (!posts || posts.length === 0) return 0;
-    const clean = (topicTitle || '').trim().toLowerCase();
-    if (!clean) return 0;
-    const keyChunk = clean.slice(0, 12);
+    const cleanTopic = (topicTitle || '').trim().toLowerCase();
+    if (!cleanTopic) return 0;
+
     return posts.filter((p) => {
-      const pTitle = (p?.title || '').toLowerCase();
-      return pTitle.includes(keyChunk) || clean.includes(pTitle.slice(0, 12));
+      const pTitle = (p?.title || '').trim().toLowerCase();
+      if (!pTitle) return false;
+
+      // Exact match or full topic phrase match
+      if (pTitle === cleanTopic) return true;
+      if (cleanTopic.length >= 8 && pTitle.includes(cleanTopic)) return true;
+
+      // Exact keyword or tag match
+      if (Array.isArray(p.keywords) && p.keywords.some((k) => (k || '').trim().toLowerCase() === cleanTopic)) {
+        return true;
+      }
+
+      return false;
     }).length;
   };
 

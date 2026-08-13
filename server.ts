@@ -6,7 +6,8 @@ import { GoogleGenAI } from "@google/genai";
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb", parameterLimit: 100000 }));
 
 // In-memory cache for sitemap
 let sitemapCache: string | null = null;
@@ -39,7 +40,17 @@ function generateSitemapXml(baseUrl: string, posts: any[] = []): string {
   if (Array.isArray(posts)) {
     posts.forEach((post) => {
       if (post.published !== false) {
-        const slug = post.slug || post.id;
+        let slug = (post.slug || "").trim();
+        if (!slug || /^post-\d+$/.test(slug)) {
+          slug = (post.title || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^\w\s가-힣-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/(^-|-$)/g, "");
+          if (!slug) slug = post.id || "post";
+        }
         const lastmod = post.updatedAt || post.publishedAt || now;
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/post/${encodeURIComponent(slug)}</loc>\n`;
