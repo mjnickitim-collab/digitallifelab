@@ -131,10 +131,16 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
     try {
       const queryToSearch = queryParam || imageSearchQuery || topic || category;
       const res = await fetch(
-        `/api/search-unsplash?query=${encodeURIComponent(queryToSearch)}&accessKey=${secrets.unsplashAccessKey}`
+        `/api/search-unsplash?query=${encodeURIComponent(queryToSearch)}&accessKey=${secrets.unsplashAccessKey || ''}`
       );
-      const data = await res.json();
-      if (data.images) {
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        console.warn('Unsplash response not JSON:', text.slice(0, 100));
+      }
+      if (data && Array.isArray(data.images) && data.images.length > 0) {
         setImageList(data.images);
       }
     } catch (e) {
@@ -174,7 +180,17 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
         }),
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        if (responseText.includes('The page') || responseText.includes('<html>') || responseText.includes('504') || responseText.includes('502')) {
+          throw new Error('서버 게이트웨이 처리 시간이 초과되었습니다. Gemini API 키를 확인하시거나 잠시 후 다시 시도해 주세요.');
+        }
+        throw new Error(`올바르지 않은 서버 응답입니다: ${responseText.slice(0, 80)}`);
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || '글 생성에 실패했습니다.');
       }

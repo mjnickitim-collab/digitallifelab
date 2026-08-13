@@ -88,12 +88,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSearchUnsplash = async (queryParam?: string) => {
     setIsSearchingImages(true);
     try {
-      const q = queryParam || imageSearchQuery || manualTitle || manualCategory;
+      const q = queryParam || imageSearchQuery || manualTitle || manualCategory || 'technology';
       const res = await fetch(
-        `/api/search-unsplash?query=${encodeURIComponent(q)}&accessKey=${secrets.unsplashAccessKey}`
+        `/api/search-unsplash?query=${encodeURIComponent(q)}&accessKey=${secrets.unsplashAccessKey || ''}`
       );
-      const data = await res.json();
-      if (data.images) {
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        console.warn('Unsplash response not JSON:', text.slice(0, 100));
+      }
+      if (data && Array.isArray(data.images) && data.images.length > 0) {
         setImageList(data.images);
       }
     } catch (e) {
