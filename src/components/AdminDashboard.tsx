@@ -88,18 +88,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSearchUnsplash = async (queryParam?: string) => {
     setIsSearchingImages(true);
     try {
-      const q = queryParam || imageSearchQuery || manualTitle || manualCategory || 'technology';
+      const q = queryParam || imageSearchQuery || manualTitle || manualCategory;
       const res = await fetch(
-        `/api/search-unsplash?query=${encodeURIComponent(q)}&accessKey=${secrets.unsplashAccessKey || ''}`
+        `/api/search-unsplash?query=${encodeURIComponent(q)}&accessKey=${secrets.unsplashAccessKey}`
       );
-      const text = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(text);
-      } catch (err) {
-        console.warn('Unsplash response not JSON:', text.slice(0, 100));
-      }
-      if (data && Array.isArray(data.images) && data.images.length > 0) {
+      const data = await res.json();
+      if (data.images) {
         setImageList(data.images);
       }
     } catch (e) {
@@ -337,8 +331,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {posts.map((post, idx) => (
-                    <tr key={post.id || `post-${idx}`} className="hover:bg-slate-50/80 transition-colors">
+                  {posts.map((post) => (
+                    <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4 max-w-xs">
                         <div className="flex items-center gap-3">
                           <img
@@ -688,7 +682,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex flex-wrap gap-2">
                 {PRESET_STOCK_IMAGES.map((item, idx) => (
                   <button
-                    key={idx}
+                    key={`preset-stock-${item.name}-${idx}`}
                     type="button"
                     onClick={() => {
                       setManualCoverImage(item.url);
@@ -716,9 +710,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     const imgUrl = img.url || img.urls?.regular || img.urls?.small || '';
                     const thumbUrl = img.thumb || img.urls?.small || img.urls?.regular || imgUrl;
                     const isSelected = manualCoverImage === imgUrl;
+                    const itemKey = img.id || imgUrl || `unsplash-img-${i}`;
                     return (
                       <div
-                        key={i}
+                        key={itemKey}
                         onClick={() => {
                           if (imgUrl) {
                             setManualCoverImage(imgUrl);

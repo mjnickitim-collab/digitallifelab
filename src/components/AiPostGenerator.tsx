@@ -66,22 +66,48 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
   );
   const [imageCaption, setImageCaption] = useState('스마트폰 디지털 라이프 스타일');
 
+  // Helper to normalize strings for robust comparison
+  const normalizeText = (text?: string): string => {
+    return (text || '')
+      .replace(/[\s\-_.,!?:;'"“”‘’`()[\]{}<>~@#$%^&*+/\\|]/g, '')
+      .toLowerCase();
+  };
+
   // Helper to count existing published posts matching a topic
   const getMatchingPostCount = (topicTitle: string): number => {
-    if (!posts || posts.length === 0) return 0;
-    const cleanTopic = (topicTitle || '').trim().toLowerCase();
-    if (!cleanTopic) return 0;
+    if (!posts || posts.length === 0 || !topicTitle) return 0;
+    const targetClean = topicTitle.trim();
+    if (!targetClean) return 0;
+
+    const targetNorm = normalizeText(targetClean);
+    if (targetNorm.length < 3) return 0;
+
+    // Core keyword without generic endings like "하는방법", "방법", "하는법", "앱", "가이드"
+    const coreNorm = targetNorm
+      .replace(/(하는방법|하는법|활용방법|활용법|방법|가이드|정리)$/, '')
+      .trim();
 
     return posts.filter((p) => {
-      const pTitle = (p?.title || '').trim().toLowerCase();
-      if (!pTitle) return false;
+      if (!p) return false;
 
-      // Exact match or full topic phrase match
-      if (pTitle === cleanTopic) return true;
-      if (cleanTopic.length >= 8 && pTitle.includes(cleanTopic)) return true;
+      // 1. Direct keywords check
+      if (Array.isArray(p.keywords)) {
+        const keywordMatch = p.keywords.some((k) => {
+          if (!k || typeof k !== 'string') return false;
+          const kn = normalizeText(k);
+          return kn === targetNorm || (kn.length >= 4 && kn === coreNorm);
+        });
+        if (keywordMatch) return true;
+      }
 
-      // Exact keyword or tag match
-      if (Array.isArray(p.keywords) && p.keywords.some((k) => (k || '').trim().toLowerCase() === cleanTopic)) {
+      // 2. Exact or Normalized Title Match
+      const pTitleNorm = normalizeText(p.title || '');
+      if (!pTitleNorm || pTitleNorm.length < 3) return false;
+
+      if (pTitleNorm === targetNorm) return true;
+
+      // 3. Substring match: The full core topic phrase (min 7 chars) must be in the post title
+      if (coreNorm.length >= 7 && pTitleNorm.includes(coreNorm)) {
         return true;
       }
 
@@ -90,8 +116,10 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
   };
 
   const getTopicUsageCount = (topicTitle: string): number => {
-    const localCount = usageMap[topicTitle.trim()] || 0;
-    const postCount = getMatchingPostCount(topicTitle);
+    if (!topicTitle || typeof topicTitle !== 'string') return 0;
+    const key = topicTitle.trim();
+    const localCount = typeof usageMap[key] === 'number' ? usageMap[key] : 0;
+    const postCount = getMatchingPostCount(key);
     return Math.max(localCount, postCount);
   };
 
@@ -105,7 +133,7 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
         if (item.category !== selectedPresetTab) return false;
       }
       // Search query filter
-      if (presetSearch.trim()) {
+      if (presetSearch && presetSearch.trim()) {
         const q = presetSearch.trim().toLowerCase();
         return (item.title || '').toLowerCase().includes(q) || (item.category || '').toLowerCase().includes(q);
       }
@@ -131,16 +159,10 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
     try {
       const queryToSearch = queryParam || imageSearchQuery || topic || category;
       const res = await fetch(
-        `/api/search-unsplash?query=${encodeURIComponent(queryToSearch)}&accessKey=${secrets.unsplashAccessKey || ''}`
+        `/api/search-unsplash?query=${encodeURIComponent(queryToSearch)}&accessKey=${secrets.unsplashAccessKey}`
       );
-      const text = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(text);
-      } catch (jsonErr) {
-        console.warn('Unsplash response not JSON:', text.slice(0, 100));
-      }
-      if (data && Array.isArray(data.images) && data.images.length > 0) {
+      const data = await res.json();
+      if (data.images) {
         setImageList(data.images);
       }
     } catch (e) {
@@ -180,17 +202,7 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
         }),
       });
 
-      const responseText = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonErr) {
-        if (responseText.includes('The page') || responseText.includes('<html>') || responseText.includes('504') || responseText.includes('502')) {
-          throw new Error('서버 게이트웨이 처리 시간이 초과되었습니다. Gemini API 키를 확인하시거나 잠시 후 다시 시도해 주세요.');
-        }
-        throw new Error(`올바르지 않은 서버 응답입니다: ${responseText.slice(0, 80)}`);
-      }
-
+      const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || '글 생성에 실패했습니다.');
       }
@@ -206,10 +218,10 @@ export const AiPostGenerator: React.FC<AiPostGeneratorProps> = ({
       }
 
       const art = data.article || {};
-      const slug = art.slug || ((art.title || topic || '')
+      const slug = art.slug || (art.title || topic || '')
         .toLowerCase()
         .replace(/[^a-z0-9가-힣]+/g, '-')
-        .replace(/(^-|-$)/g, '')) || `post-${Date.now()}`;
+        .replace(/(^-|-$)/g, '') || `post-${Date.now()}`;
 
       onPostGenerated({
         slug,

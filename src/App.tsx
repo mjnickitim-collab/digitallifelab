@@ -63,12 +63,12 @@ export default function App() {
       const targetSlug = path.substring(6).trim();
       if (targetSlug && availablePosts && availablePosts.length > 0) {
         const found = availablePosts.find((p) => {
-          const postSlug = p.slug || p.id;
+          const postSlug = p.slug || p.id || '';
           return (
             postSlug === targetSlug ||
             p.id === targetSlug ||
             encodeURIComponent(postSlug) === targetSlug ||
-            (postSlug || '').toLowerCase() === (targetSlug || '').toLowerCase()
+            postSlug.toLowerCase() === (targetSlug || '').toLowerCase()
           );
         });
 

@@ -31,7 +31,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
   onBack,
   onSelectPost,
 }) => {
-  const [likes, setLikes] = useState(post.likes);
+  const [likes, setLikes] = useState(post.likes ?? 0);
   const [hasLiked, setHasLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -44,7 +44,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
       viewedPostIdRef.current = post.id;
       incrementPostViews(post.id);
     }
-    setLikes(post.likes);
+    setLikes(post.likes ?? 0);
   }, [post.id, post.likes]);
 
   useEffect(() => {
@@ -152,14 +152,23 @@ export const PostDetail: React.FC<PostDetailProps> = ({
 
   return (
     <article className="max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-8">
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        목록으로 돌아가기
-      </button>
+      {/* Back Button & Draft status */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          목록으로 돌아가기
+        </button>
+
+        {!post.published && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-3 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            임시 저장(Draft) 상태 - 관리자 미리보기 모드
+          </span>
+        )}
+      </div>
 
       {/* Article Header */}
       <header className="space-y-4">
@@ -187,7 +196,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             {/* Views counter */}
             <span className="flex items-center gap-1 bg-slate-100 px-3 py-1.5 rounded-lg" title="총 조회수">
               <Eye className="w-4 h-4 text-slate-500" />
-              {post.views + 1}
+              {(post.views || 0) + 1}
             </span>
 
             {/* Like button */}
@@ -292,7 +301,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             h1: ({ node, children, ...props }) => {
               let text = React.Children.toArray(children).join('');
               text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{200D}\u{FE0F}📌💡🛠️❓✅🚀⚡🔍📝📢🏷️🎯✨🔥⭐]/gu, '').trim();
-              const slug = text.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
+              const slug = (text || '').toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
               return (
                 <h1 id={slug || undefined} className="text-2xl sm:text-3xl font-display font-bold text-slate-900 mt-8 mb-4 border-b border-slate-100 pb-3 scroll-mt-20" {...props}>
                   {text}
@@ -302,7 +311,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             h2: ({ node, children, ...props }) => {
               let text = React.Children.toArray(children).join('');
               text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{200D}\u{FE0F}📌💡🛠️❓✅🚀⚡🔍📝📢🏷️🎯✨🔥⭐]/gu, '').trim();
-              const slug = text.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
+              const slug = (text || '').toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
               return (
                 <h2 id={slug || undefined} className="text-xl sm:text-2xl font-display font-bold text-slate-900 mt-8 mb-4 pt-2 border-t border-slate-100 scroll-mt-20" {...props}>
                   {text}
@@ -312,7 +321,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             h3: ({ node, children, ...props }) => {
               let text = React.Children.toArray(children).join('');
               text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{200D}\u{FE0F}📌💡🛠️❓✅🚀⚡🔍📝📢🏷️🎯✨🔥⭐]/gu, '').trim();
-              const slug = text.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
+              const slug = (text || '').toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
               return (
                 <h3 id={slug || undefined} className="text-lg font-display font-bold text-slate-900 mt-6 mb-3 text-emerald-900 scroll-mt-20" {...props}>
                   {text}
@@ -353,10 +362,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
                 // If not found by exact slug/id, search by title keywords in children
                 if (!targetPost && typeof children === 'string') {
                   const childText = (children || '').toLowerCase();
-                  targetPost = allPosts.find((p) => {
-                    const pTitle = (p?.title || '').toLowerCase();
-                    return pTitle.includes(childText) || childText.includes(pTitle);
-                  });
+                  targetPost = allPosts.find((p) => (p.title || '').toLowerCase().includes(childText) || childText.includes((p.title || '').toLowerCase()));
                 }
 
                 if (targetPost) {

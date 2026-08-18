@@ -2,12 +2,15 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ extended: true, limit: "100mb", parameterLimit: 100000 }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // In-memory cache for sitemap
 let sitemapCache: string | null = null;
@@ -40,17 +43,7 @@ function generateSitemapXml(baseUrl: string, posts: any[] = []): string {
   if (Array.isArray(posts)) {
     posts.forEach((post) => {
       if (post.published !== false) {
-        let slug = (post.slug || "").trim();
-        if (!slug || /^post-\d+$/.test(slug)) {
-          slug = (post.title || "")
-            .trim()
-            .toLowerCase()
-            .replace(/[^\w\s가-힣-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/(^-|-$)/g, "");
-          if (!slug) slug = post.id || "post";
-        }
+        const slug = post.slug || post.id;
         const lastmod = post.updatedAt || post.publishedAt || now;
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/post/${encodeURIComponent(slug)}</loc>\n`;
@@ -103,6 +96,18 @@ app.post("/api/update-sitemap", (req, res) => {
   sitemapCache = generateSitemapXml(baseUrl, posts || []);
   lastSitemapTime = Date.now();
   res.json({ success: true, message: "Sitemap updated and cached." });
+});
+
+// Direct download sitemap endpoint with attachment header
+app.get("/api/download-sitemap", (req, res) => {
+  res.setHeader("Content-Type", "application/xml");
+  res.setHeader("Content-Disposition", 'attachment; filename="sitemap.xml"');
+  const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+  if (sitemapCache) {
+    return res.send(sitemapCache);
+  }
+  const xml = generateSitemapXml(baseUrl, []);
+  return res.send(xml);
 });
 
 // 3. AI Article Auto-Generation API using Gemini API (@google/genai)
@@ -230,41 +235,52 @@ ${isReissue ? `[★ 재발행/중복 방지 변형 지침 - 필독 ★]
   "content": "Full markdown content string in Korean"
 }`;
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          maxOutputTokens: 4096,
-          temperature: 0.7,
-        },
-      });
-    } catch (modelErr: any) {
-      console.warn("gemini-2.5-flash failed, attempting gemini-2.0-flash fallback:", modelErr.message);
+    // Try generation with primary model gemini-3.7-flash, with fallback to gemini-2.5-flash-preview / gemini-3.1-flash-lite
+    let responseText = "";
+    const modelsToTry = ["gemini-3.7-flash", "gemini-2.5-flash-preview", "gemini-3.1-flash-lite"];
+    let lastGenError: any = null;
+
+    for (const modelName of modelsToTry) {
       try {
-        response = await ai.models.generateContent({
-          model: "gemini-2.0-flash",
+        console.log(`Attempting article generation with model: ${modelName}...`);
+        const response = await ai.models.generateContent({
+          model: modelName,
           contents: prompt,
           config: {
             responseMimeType: "application/json",
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,
             temperature: 0.7,
           },
         });
-      } catch (fallbackErr: any) {
-        throw new Error(`Gemini API 호출 실패: ${fallbackErr.message || modelErr.message}`);
+        if (response && response.text) {
+          responseText = response.text;
+          console.log(`Successfully generated article with model: ${modelName}`);
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Model ${modelName} failed:`, err.message);
+        lastGenError = err;
       }
     }
 
-    const rawText = response.text || "";
+    if (!responseText) {
+      throw new Error(lastGenError?.message || "AI 칼럼 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
+    const rawText = responseText;
     
     // Robust JSON Parser with Auto-Repair
     const safeJsonParse = (textStr: string) => {
       let cleaned = textStr.trim();
       if (cleaned.startsWith("```")) {
         cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      }
+
+      // Try extracting bracket block if there's surrounding text
+      const firstBrace = cleaned.indexOf("{");
+      const lastBrace = cleaned.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1).trim();
       }
 
       try {
@@ -353,90 +369,66 @@ ${isReissue ? `[★ 재발행/중복 방지 변형 지침 - 필독 ★]
 app.get("/api/search-unsplash", async (req, res) => {
   try {
     const query = (req.query.query as string) || "technology minimalism";
-    const rawKey = (req.query.accessKey as string) || process.env.UNSPLASH_ACCESS_KEY || "";
-    const userAccessKey = rawKey.trim();
+    const userAccessKey = (req.query.accessKey as string) || process.env.UNSPLASH_ACCESS_KEY;
 
-    if (userAccessKey && userAccessKey !== "undefined" && userAccessKey !== "null" && userAccessKey.length > 10) {
-      try {
-        const response = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=10&orientation=landscape`,
-          {
-            headers: {
-              Authorization: `Client-ID ${userAccessKey}`,
-            },
-          }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          if (data && Array.isArray(data.results) && data.results.length > 0) {
-            const images = data.results.map((img: any) => ({
-              id: img.id,
-              url: img.urls?.regular || img.urls?.small,
-              thumb: img.urls?.small || img.urls?.thumb,
-              caption: img.alt_description || img.description || query,
-              authorName: img.user?.name || "Unsplash Creator",
-              authorLink: img.user?.links?.html || "https://unsplash.com",
-            }));
-            return res.json({ success: true, images });
-          }
-        } else {
-          console.warn("Unsplash API returned non-OK status:", response.status);
+    if (userAccessKey) {
+      const response = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=8&orientation=landscape`,
+        {
+          headers: {
+            Authorization: `Client-ID ${userAccessKey}`,
+          },
         }
-      } catch (uErr) {
-        console.warn("Unsplash API fetch failed, switching to curated fallbacks:", uErr);
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const images = data.results.map((img: any) => ({
+          id: img.id,
+          url: img.urls.regular,
+          thumb: img.urls.small,
+          caption: img.alt_description || img.description || query,
+          authorName: img.user?.name || "Unsplash Creator",
+          authorLink: img.user?.links?.html || "https://unsplash.com",
+        }));
+        return res.json({ success: true, images });
       }
     }
 
-    // High quality curated Unsplash photo collections with keyword relevance
-    const safeQ = encodeURIComponent(query);
+    // High quality curated fallback image collections matching queries
     const fallbackImages = [
       {
-        id: `fb-1-${safeQ}`,
+        id: "fb-1",
         url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200",
         thumb: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 추상 비주얼 디자인`,
+        caption: "Abstract digital waves and geometry",
         authorName: "Unsplash Studio",
       },
       {
-        id: `fb-2-${safeQ}`,
+        id: "fb-2",
         url: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1200",
         thumb: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 모던 미니멀 워크스페이스`,
+        caption: "Minimalist desk and notebook workspace",
         authorName: "Unsplash Workspace",
       },
       {
-        id: `fb-3-${safeQ}`,
-        url: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&q=80&w=1200",
-        thumb: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 스마트 기기 & IT 매트릭스`,
-        authorName: "Unsplash Tech",
+        id: "fb-3",
+        url: "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?auto=format&fit=crop&q=80&w=1200",
+        thumb: "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?auto=format&fit=crop&q=80&w=400",
+        caption: "Quiet focus reading setup",
+        authorName: "Unsplash Reader",
       },
       {
-        id: `fb-4-${safeQ}`,
+        id: "fb-4",
         url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=1200",
         thumb: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 소프트웨어 개발 & AI 연구`,
-        authorName: "Unsplash Code",
-      },
-      {
-        id: `fb-5-${safeQ}`,
-        url: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&q=80&w=1200",
-        thumb: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 디지털 라이프스타일`,
-        authorName: "Unsplash Life",
-      },
-      {
-        id: `fb-6-${safeQ}`,
-        url: "https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?auto=format&fit=crop&q=80&w=1200",
-        thumb: "https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?auto=format&fit=crop&q=80&w=400",
-        caption: `${query} - 모바일 생산성 노트`,
-        authorName: "Unsplash Focus",
+        caption: "Clean software engineering setup",
+        authorName: "Unsplash Tech",
       },
     ];
 
-    return res.json({ success: true, images: fallbackImages, note: "Curated Unsplash royalty-free collection." });
+    return res.json({ success: true, images: fallbackImages, note: "Using curated royalty-free images." });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message || "Failed to search images." });
+    res.status(500).json({ error: err.message || "Failed to search images." });
   }
 });
 

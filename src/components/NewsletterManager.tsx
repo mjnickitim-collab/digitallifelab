@@ -67,7 +67,8 @@ export const NewsletterManager: React.FC<NewsletterManagerProps> = ({ posts }) =
 
   // Filter subscribers list
   const filteredSubscribers = subscribers.filter((sub) => {
-    const matchesSearch = (sub?.email || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+    const query = (searchQuery || '').trim().toLowerCase();
+    const matchesSearch = !query || (sub?.email || '').toLowerCase().includes(query);
     const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
